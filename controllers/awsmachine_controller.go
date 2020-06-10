@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"sigs.k8s.io/cluster-api/util/conditions"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/cluster-api/controllers/noderefutil"
 	capierrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -160,9 +160,29 @@ func (r *AWSMachineReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reter
 	defer func() {
 		// set Ready condition before AWSMachine is patched
 		if machineScope.IsControlPlane() {
-			conditions.SetSummary(machineScope.AWSMachine, conditions.WithStepCounter(infrav1.ControlPlaneConditionCount))
+			conditions.SetSummary(machineScope.AWSMachine,
+				conditions.WithConditions(
+					infrav1.InstanceReadyCondition,
+					infrav1.SecurityGroupsReadyCondition,
+					infrav1.ELBAttachedCondition,
+				),
+				conditions.WithStepCounterIfOnly(
+					infrav1.InstanceReadyCondition,
+					infrav1.SecurityGroupsReadyCondition,
+					infrav1.ELBAttachedCondition,
+				),
+			)
 		} else {
-			conditions.SetSummary(machineScope.AWSMachine, conditions.WithStepCounter(infrav1.WorkerConditionCount))
+			conditions.SetSummary(machineScope.AWSMachine,
+				conditions.WithConditions(
+					infrav1.InstanceReadyCondition,
+					infrav1.SecurityGroupsReadyCondition,
+				),
+				conditions.WithStepCounterIfOnly(
+					infrav1.InstanceReadyCondition,
+					infrav1.SecurityGroupsReadyCondition,
+				),
+			)
 		}
 
 		if err := machineScope.Close(); err != nil && reterr == nil {

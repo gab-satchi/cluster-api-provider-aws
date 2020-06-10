@@ -19,11 +19,6 @@ package v1alpha3
 import clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
 
 const (
-	WorkerConditionCount       = 2
-	ControlPlaneConditionCount = 3
-)
-
-const (
 	// InstanceReadyCondition reports on current status of the EC2 instance. Ready indicates the instance is in a Running state.
 	InstanceReadyCondition clusterv1.ConditionType = "InstanceReady"
 
