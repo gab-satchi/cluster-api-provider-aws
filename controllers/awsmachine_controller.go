@@ -412,21 +412,32 @@ func (r *AWSMachineReconciler) reconcileNormal(_ context.Context, machineScope *
 
 	if !machineScope.Cluster.Status.InfrastructureReady {
 		machineScope.Info("Cluster infrastructure is not ready yet")
+		conditions.MarkFalse(machineScope.AWSMachine, infrav1.InstanceReadyCondition, infrav1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
 		return ctrl.Result{}, nil
 	}
 
 	// Make sure bootstrap data is available and populated.
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		machineScope.Info("Bootstrap data secret reference is not yet available")
+		conditions.MarkFalse(machineScope.AWSMachine, infrav1.InstanceReadyCondition, infrav1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
 		return ctrl.Result{}, nil
 	}
 
 	ec2svc := r.getEC2Service(clusterScope)
 
-	// Get or create the instance.
-	instance, err := r.getOrCreate(machineScope, ec2svc, secretSvc)
+	// Find existing instance
+	instance, err := r.findInstance(machineScope, ec2svc)
 	if err != nil {
+		conditions.MarkFalse(machineScope.AWSMachine, infrav1.InstanceReadyCondition, infrav1.InstanceNotFoundReason, clusterv1.ConditionSeverityError, err.Error())
 		return ctrl.Result{}, err
+	}
+	// Create new instance
+	if instance == nil {
+		instance, err = r.createInstance(machineScope, ec2svc, secretSvc)
+		if err != nil {
+			conditions.MarkFalse(machineScope.AWSMachine, infrav1.InstanceReadyCondition, infrav1.InstanceProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Set an failure message if we couldn't find the instance.
@@ -548,17 +559,7 @@ func (r *AWSMachineReconciler) deleteEncryptedBootstrapDataSecret(machineScope *
 	return nil
 }
 
-func (r *AWSMachineReconciler) getOrCreate(scope *scope.MachineScope, ec2svc services.EC2MachineInterface, secretSvc services.SecretsManagerInterface) (*infrav1.Instance, error) {
-	instance, err := r.findInstance(scope, ec2svc)
-	if err != nil {
-		return nil, err
-	}
-
-	// If we find an instance, return it
-	if instance != nil {
-		return instance, nil
-	}
-	// Otherwise create a new instance
+func (r *AWSMachineReconciler) createInstance(scope *scope.MachineScope, ec2svc services.EC2MachineInterface, secretSvc services.SecretsManagerInterface) (*infrav1.Instance, error) {
 	scope.Info("Creating EC2 instance")
 
 	userData, err := scope.GetRawBootstrapData()
@@ -595,7 +596,7 @@ func (r *AWSMachineReconciler) getOrCreate(scope *scope.MachineScope, ec2svc ser
 		userData = encryptedCloudInit
 	}
 
-	instance, err = ec2svc.CreateInstance(scope, userData)
+	instance, err := ec2svc.CreateInstance(scope, userData)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create AWSMachine instance")
 	}

@@ -171,6 +171,7 @@ var _ = Describe("AWSMachineReconciler", func() {
 				_, err := reconciler.reconcileNormal(context.Background(), ms, cs)
 				Expect(err).To(BeNil())
 				Expect(buf.String()).To(ContainSubstring("Cluster infrastructure is not ready yet"))
+				expectConditions(ms.AWSMachine, []conditionAssertion{{infrav1.InstanceReadyCondition, corev1.ConditionFalse, clusterv1.ConditionSeverityInfo, infrav1.WaitingForClusterInfrastructureReason}})
 			})
 
 			It("should exit immediately if bootstrap data secret reference isn't available", func() {
@@ -183,6 +184,7 @@ var _ = Describe("AWSMachineReconciler", func() {
 
 				Expect(err).To(BeNil())
 				Expect(buf.String()).To(ContainSubstring("Bootstrap data secret reference is not yet available"))
+				expectConditions(ms.AWSMachine, []conditionAssertion{{infrav1.InstanceReadyCondition, corev1.ConditionFalse, clusterv1.ConditionSeverityInfo, infrav1.WaitingForBootstrapDataReason}})
 			})
 
 			It("should return an error when we can't list instances by tags", func() {
@@ -704,7 +706,7 @@ type conditionAssertion struct {
 }
 
 func expectConditions(m *infrav1.AWSMachine, expected []conditionAssertion) {
-	Expect(len(m.Status.Conditions)).To(BeNumerically(">=", len(expected)))
+	Expect(len(m.Status.Conditions)).To(BeNumerically(">=", len(expected)), "number of conditions")
 	for _, c := range expected {
 		actual := conditions.Get(m, c.conditionType)
 		Expect(actual).To(Not(BeNil()))
