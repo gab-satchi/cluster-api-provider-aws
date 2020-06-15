@@ -99,11 +99,24 @@ func (r *AWSClusterReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reter
 
 	// Always close the scope when exiting this function so we can persist any AWSCluster changes.
 	defer func() {
-		if c := conditions.Get(clusterScope.AWSCluster, infrav1.BastionHostReadyCondition); c != nil {
-			// Bastion was not skipped
-			conditions.SetSummary(clusterScope.AWSCluster, conditions.WithStepCounter(infrav1.ClusterConditionWithBastionCount))
+		if !clusterScope.AWSCluster.Spec.Bastion.Enabled || clusterScope.VPC().IsUnmanaged(clusterScope.Name()) {
+			// Bastion was skipped
+			conditions.SetSummary(clusterScope.AWSCluster,
+				conditions.WithConditions(
+					infrav1.NetworkInfrastructureReadyCondition,
+					infrav1.LoadBalancerReadyCondition,
+				),
+				conditions.WithStepCounter(),
+			)
 		} else {
-			conditions.SetSummary(clusterScope.AWSCluster, conditions.WithStepCounter(infrav1.ClusterConditionCount))
+			conditions.SetSummary(clusterScope.AWSCluster,
+				conditions.WithConditions(
+					infrav1.NetworkInfrastructureReadyCondition,
+					infrav1.LoadBalancerReadyCondition,
+					infrav1.BastionHostReadyCondition,
+				),
+				conditions.WithStepCounter(),
+			)
 		}
 		if err := clusterScope.Close(); err != nil && reterr == nil {
 			reterr = err

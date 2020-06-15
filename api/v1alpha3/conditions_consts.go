@@ -19,29 +19,28 @@ package v1alpha3
 import clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
 
 const (
-	WorkerConditionCount             = 2
-	ControlPlaneConditionCount       = 3
-	ClusterConditionCount            = 2
-	ClusterConditionWithBastionCount = 3
-)
-
-// AWSCluster Conditions and Reasons
-const (
-	NetworkInfrastructureReadyCondition = "NetworkInfrastructureReady"
-	NetworkInfrastructureFailedReason   = "NetworkInfrastructureFailed"
+	// NetworkInfrastructureReadyCondition reports on the necessary network infrastructure for a cluster being ready.
+	// It aggregates reconciliation of VPC, subnets, gateways etc.
+	NetworkInfrastructureReadyCondition clusterv1.ConditionType = "NetworkInfrastructureReady"
+	// NetworkInfrastructureFailedReason used when an error occurs during network reconciliation
+	NetworkInfrastructureFailedReason = "NetworkInfrastructureFailed"
 )
 
 const (
-	BastionHostReadyCondition = "BastionHostReady"
-	BastionHostFailedReason   = "BastionHostFailed"
+	// BastionHostReadyCondition reports whether a bastion host is ready. Depending on the configuration, a cluster
+	// may not require a bastion host and this condition will be skipped
+	BastionHostReadyCondition clusterv1.ConditionType = "BastionHostReady"
+	// BastionHostFailedReason used when an error occurs during the creation of a bastion host
+	BastionHostFailedReason = "BastionHostFailed"
 )
 
 const (
-	LoadBalancerReadyCondition = "LoadBalancerReady"
-	LoadBalancerFailedReason   = "LoadBalancerFailed"
+	// LoadBalancerReadyCondition reports on whether a control plane load balancer was successfully reconciled.
+	LoadBalancerReadyCondition clusterv1.ConditionType = "LoadBalancerReady"
+	// LoadBalancerFailedReason used when an error occurs during load balancer reconciliation
+	LoadBalancerFailedReason = "LoadBalancerFailed"
 )
 
-// AWSMachine Conditions and Reasons
 const (
 	// InstanceReadyCondition reports on current status of the EC2 instance. Ready indicates the instance is in a Running state.
 	InstanceReadyCondition clusterv1.ConditionType = "InstanceReady"
